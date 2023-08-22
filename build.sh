@@ -23,18 +23,9 @@ sudo apt-get install -yqq --no-install-recommends \
             schroot \
             debootstrap
 
-# Hacky install of qemu-user-static from bullseye-backports if we're doing a build for bullseye/arm64
-# Ref: https://www.mail-archive.com/ubuntu-bugs@lists.ubuntu.com/msg5979049.html
-if [ "${distro}" == "bullseye" ] && [ "${arch}" == "arm64" ]; then
-    echo 'BUILD.SH CI: implementing bullseye/arm64 workaround'
-    echo "deb [trusted=yes] http://deb.debian.org/debian bullseye-backports main" | sudo tee -a "/etc/apt/sources.list.d/backports.list"
-    sudo apt-get update -yqq
-    sudo apt-get install -yqq --no-install-recommends qemu-user-static -t bullseye-backports
-else
+    echo 'BUILD.SH CI'
     sudo apt-get install -yqq --no-install-recommends qemu-user-static \
             binfmt-support
-fi
-
 
 set +e
 schroot_name="${distro}-${arch}-sbuild"
