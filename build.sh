@@ -3,7 +3,7 @@
 set -e
 
 distro="${INPUTS_DISTRO:-bullseye}"
-arch="${INPUTS_ARCH:-armhf}"
+arch="${INPUTS_ARCH:-arm64}"
 run_lintian="${INPUTS_RUN_LINTIAN:-true}"
 
 if [ "${run_lintian}" == "true" ]; then
