@@ -4,6 +4,7 @@ set -e
 
 distro="${INPUTS_DISTRO:-bullseye}"
 arch="${INPUTS_ARCH:-arm64}"
+schroot_name="${distro}-${arch}-sbuild"
 run_lintian="${INPUTS_RUN_LINTIAN:-true}"
 
 if [ "${run_lintian}" == "true" ]; then
@@ -27,16 +28,44 @@ sudo apt-get install -yqq --no-install-recommends \
     sudo apt-get install -yqq --no-install-recommends qemu-user-static \
             binfmt-support
 
+log_info() {
+    echo "INFO: $1"
+}
+
+log_error() {
+    echo "ERROR: $1" >&2
+    local log_file="/srv/chroot/${schroot_name}/debootstrap/debootstrap.log"
+    if [ -f "$log_file" ]; then
+        echo "=== Debootstrap Log Contents ==="
+        cat "$log_file"
+        echo "=== End Debootstrap Log ==="
+    fi
+}
+
+orig_errexit=$(set -o | grep errexit | cut -f2)
+
 set +e
-schroot_name="${distro}-${arch}-sbuild"
+log_info "Checking for existing schroot: ${schroot_name}"
 schroot_exists=$(sudo schroot -l | grep -o "chroot:${schroot_name}")
-set -e
+log_info "schroot check result: ${schroot_exists}"
 
 schroot_target="/srv/chroot/${schroot_name}"
 if [ "${schroot_exists}" != "chroot:${schroot_name}" ]; then
-    echo "Create schroot"
+    log_info "Creating schroot at ${schroot_target}"
     sudo sbuild-createchroot --arch=${arch} ${distro} \
         "${schroot_target}" http://deb.debian.org/debian
+    
+    create_status=$?
+    if [ $create_status -ne 0 ]; then
+        log_error "sbuild-createchroot failed with status ${create_status}"
+        exit $create_status
+    fi
+fi
+
+if [ "$orig_errexit" = "on" ]; then
+    set -e
+else
+    set +e
 fi
 
 # There is an issue on Ubuntu 20.04 and qemu 4.2 when entering fakeroot
