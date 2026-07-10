@@ -42,8 +42,6 @@ log_error() {
     fi
 }
 
-orig_errexit=$(set -o | grep errexit | cut -f2)
-
 set +e
 log_info "Checking for existing schroot: ${schroot_name}"
 schroot_exists=$(sudo schroot -l | grep -o "chroot:${schroot_name}")
@@ -62,11 +60,10 @@ if [ "${schroot_exists}" != "chroot:${schroot_name}" ]; then
     fi
 fi
 
-if [ "$orig_errexit" = "on" ]; then
-    set -e
-else
-    set +e
-fi
+# Re-enable strict error handling (the block above tolerates grep misses).
+# This was previously restored from a broken `set -o | cut` probe that never
+# matched, leaving errexit off — so sbuild failures did not fail the step.
+set -e
 
 # There is an issue on Ubuntu 20.04 and qemu 4.2 when entering fakeroot
 # References:
@@ -114,7 +111,11 @@ sudo sbuild --arch=${arch} -c ${schroot_name} ${run_lintian} \
     -d ${distro} ../${dsc_file} --verbose
 
 echo "Generated files:"
-DEB_PACKAGE=$(find ./ -name "*.deb" | grep -v "dbgsym")
+DEB_PACKAGE=$(find ./ -name "*.deb" | grep -v "dbgsym" || true)
+if [ -z "${DEB_PACKAGE}" ]; then
+    echo "ERROR: sbuild produced no .deb package" >&2
+    exit 1
+fi
 echo "Package: ${DEB_PACKAGE}"
 
 # Set output
